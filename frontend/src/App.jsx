@@ -56,8 +56,9 @@ export default function App() {
       const form = new FormData();
       form.append("file", blob, "frame.jpg");
       form.append("conf", "0.35");
+      const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-      const resp = await fetch("http://localhost:8000/detect", {
+      const resp = await fetch(`${API}/detect`, {
         method: "POST",
         body: form
       });
