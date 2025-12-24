@@ -7,5 +7,6 @@ import Index from './pages/index.jsx'
 createRoot(document.getElementById('root')).render(
   // <StrictMode>
     <Index />
+    // <App />
   // </StrictMode>,
 )

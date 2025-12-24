@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState } from "react";
+import { config } from "../../config/config";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API = config.api_url || "http://localhost:8000";
+const MODEL_SIZE = 640;
 
 export default function CameraComponent() {
   const videoRef = useRef(null);
@@ -17,10 +19,23 @@ export default function CameraComponent() {
     async function initCamera() {
       try {
         setStatus("starting camera...");
+
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (!mounted) return;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+
+        const video = videoRef.current;
+        video.srcObject = stream;
+        await video.play();
+
+        // Ensure metadata is loaded
+        if (video.videoWidth === 0) {
+          await new Promise(res => (video.onloadedmetadata = res));
+        }
+
+        const canvas = overlayRef.current;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
         setStatus("ready");
       } catch (e) {
         console.error(e);
@@ -29,7 +44,7 @@ export default function CameraComponent() {
     }
 
     initCamera();
-    // fetch(`${API}/health`).catch(() => {});
+    fetch(`${API}/health`).catch(() => {});
 
     return () => {
       mounted = false;
@@ -40,7 +55,7 @@ export default function CameraComponent() {
     };
   }, []);
 
-    function pauseCamera() {
+  function pauseCamera() {
     const video = videoRef.current;
     if (video && !video.paused) {
       video.pause();
@@ -55,29 +70,29 @@ export default function CameraComponent() {
       video.play();
       setPaused(false);
       setStatus("ready");
-      setDetecting(false)
+      setDetecting(false);
     }
   }
 
   async function detectOnce() {
     if (detecting || paused) return;
 
-    pauseCamera()
     setDetecting(true);
     setStatus("uploading frame...");
+    pauseCamera();
 
     try {
       const video = videoRef.current;
       const hidden = hiddenRef.current;
 
-      hidden.width = 640;
-      hidden.height = 640;
+      hidden.width = MODEL_SIZE;
+      hidden.height = MODEL_SIZE;
 
       const hctx = hidden.getContext("2d");
-      hctx.drawImage(video, 0, 0, 640, 640);
+      hctx.drawImage(video, 0, 0, MODEL_SIZE, MODEL_SIZE);
 
       const blob = await new Promise(resolve =>
-        hidden.toBlob(resolve, "image/jpeg", 0.6)
+        hidden.toBlob(resolve, "image/jpeg", 0.85)
       );
 
       const form = new FormData();
@@ -97,7 +112,6 @@ export default function CameraComponent() {
 
       const json = await resp.json();
       drawDetections(json.boxes || []);
-      
       setStatus("detected");
     } catch (e) {
       if (e.name === "AbortError") {
@@ -111,8 +125,6 @@ export default function CameraComponent() {
     }
   }
 
-
-
   function clearOverlay() {
     const canvas = overlayRef.current;
     if (!canvas) return;
@@ -121,25 +133,21 @@ export default function CameraComponent() {
   }
 
   function drawDetections(boxes) {
-    const video = videoRef.current;
     const canvas = overlayRef.current;
     const ctx = canvas.getContext("2d");
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     ctx.lineWidth = 2;
     ctx.font = "16px Arial";
 
-    const scaleX = canvas.width / 640;
-    const scaleY = canvas.height / 640;
+    const scaleX = canvas.width / MODEL_SIZE;
+    const scaleY = canvas.height / MODEL_SIZE;
 
     boxes.forEach(b => {
-      const x = Math.round(b.x * scaleX);
-      const y = Math.round(b.y * scaleY);
-      const w = Math.round(b.w * scaleX);
-      const h = Math.round(b.h * scaleY);
+      const x = b.x * scaleX;
+      const y = b.y * scaleY;
+      const w = b.w * scaleX;
+      const h = b.h * scaleY;
 
       const label = `${b.class_name} ${Math.round(b.score * 100)}%`;
 
@@ -148,7 +156,7 @@ export default function CameraComponent() {
 
       const tw = ctx.measureText(label).width;
       ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(x, y - 22, tw + 8, 20);
+      ctx.fillRect(x, y - 20, tw + 8, 20);
 
       ctx.fillStyle = "lime";
       ctx.fillText(label, x + 4, y - 6);
@@ -156,22 +164,23 @@ export default function CameraComponent() {
   }
 
   return (
-    <div className="p-3  rounded-2xl h-screen w-[50dvw] flex flex-col justify-center ">
+    <div className="p-3 rounded-2xl h-screen w-[50dvw] flex flex-col justify-center">
       <h3 className="mb-3 ml-9 text-lg font-medium">
         Status: <span className="font-semibold">{status}</span>
       </h3>
 
-      <div className="relative  h-[40dvw] w-[48dvw] place-items-center">
+      <div className="relative h-[40dvw] w-[48dvw]">
         <video
           ref={videoRef}
-          className="h-[40dvw] bg-black rounded-2xl   "
+          className="w-full h-full bg-black rounded-2xl"
           autoPlay
           muted
           playsInline
         />
+
         <canvas
           ref={overlayRef}
-          className="absolute left-0 top-0"
+          className="absolute left-0 top-0 w-full h-full pointer-events-none"
         />
       </div>
 
