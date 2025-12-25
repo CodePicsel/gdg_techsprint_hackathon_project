@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { db } from "../firebase/firebase.config";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import logo from '../assets/riverbot.png'
 
 const API = import.meta.env.VITE_API_URL || "https://your-app.onrender.com";
 const MODEL_SIZE = 640;
@@ -69,7 +70,7 @@ export default function CameraComponent() {
       clearOverlay();
       video.play();
       setPaused(false);
-      setStatus("ready");
+      setStatus("Ready");
       setLastDetectionCount(0);
     }
   }
@@ -121,7 +122,7 @@ export default function CameraComponent() {
       if (boxes.length > 0) {
         await saveToFirestore(boxes);
       } else {
-        setStatus("no plastic detected");
+        setStatus("No plastic detected");
       }
 
     } catch (e) {
@@ -211,11 +212,14 @@ export default function CameraComponent() {
   }
 
   return (
-    <div className="p-3 rounded-2xl h-screen w-[50dvw] flex flex-col justify-center">
-      <h3 className="mb-3 ml-9 text-lg font-medium">
-        Status: <span className="font-semibold">{status}</span>
+    <div className="p-3 ml-4 rounded-2xl h-screen w-[50dvw] flex flex-col justify-center">
+      <section className="flex m-4 align-bottom gap-2">
+        <img src={logo} alt='RiverBot logo' className='h-12 w-12' />
+          <h1 className="text-3xl font-bold text-sky-600 flex self-center ">RiverBot</h1>
+      <h3 className=" ml-9 text-lg font-medium capitalize flex items-center gap-2">
+        Status: <span className={`font-semibold ${status == 'ready' ? 'text-green-600' : 'text-yellow-300'}`}>{status}</span>
       </h3>
-
+      </section>
       <div className="relative h-[40dvw] w-[48dvw]">
         <video
           ref={videoRef}
@@ -239,21 +243,21 @@ export default function CameraComponent() {
             ${detecting || paused
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-green-600 hover:bg-green-700 cursor-pointer"}
-            text-white transition`}
+            text-gray-200 transition`}
         >
           {detecting ? "Detecting..." : "Detect"}
         </button>
 
         <button
-          onClick={resumeCamera}
+          onClick={() => (resumeCamera(), setDetecting(false), setStatus('ready'))}
           disabled={!paused}
           className={`px-5 py-2 text-base rounded 
             ${paused
-              ? "bg-gray-800 hover:bg-gray-900 cursor-pointer"
-              : "bg-gray-400 cursor-not-allowed"}
-            text-white transition`}
+              ? "bg-blue-800 hover:bg-blue-950 cursor-pointer"
+              : "bg-gray-950 cursor-not-allowed"}
+            text-gray-200 transition`}
         >
-          Release / Resume
+          Release
         </button>
       </div>
 

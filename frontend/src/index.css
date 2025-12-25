@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
 * {
-    color: rgb(255, 0, 0);
+    /* color: rgb(255, 0, 0); */
+    font-family: poppins-semiB;
 }
+
+@font-face {
+  font-family: poppins-semiB;
+  src: url(./assets/Poppins-SemiBold.ttf);
+}
+
 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -11,7 +18,7 @@
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: rgb(31 41 55);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -19,7 +26,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
+/* a {
   font-weight: 500;
   color: #646cff;
   text-decoration: inherit;
@@ -72,8 +79,4 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
-
-.stat_card {
-  /* box-shadow: rgb(49, 49, 49) 4px 4px 1px; */
-
-}
+*/
