@@ -1,48 +1,49 @@
-const FUNCTIONS_URL = import.meta.env.VITE_FUNCTIONS_URL;
+import { config } from "../../../config/config";
+
+// Use a neutral name now that this is Render, not Firebase Functions
+const API_URL = config.api_url;
 
 /**
- * Send detections to Firebase backend
+ * Send detections to backend
  * @param {Array} detections - Array of detection objects from AI
- * @returns {Promise} Response from Firebase
+ * @returns {Promise<any>} Response from backend
  */
 export async function ingestDetections(detections) {
   try {
-    const response = await fetch(`${FUNCTIONS_URL}/ingestDetection`, {
-      method: 'POST',
+    const response = await fetch(`${API_URL}/ingestDetection`, {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ detections })
+      body: JSON.stringify({ detections }),
     });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
-    return data;
+    return await response.json();
   } catch (error) {
-    console.error('Failed to ingest detections:', error);
+    console.error("Failed to ingest detections:", error);
     throw error;
   }
 }
 
 /**
  * Get current real-time statistics
- * @returns {Promise} Current stats object
+ * @returns {Promise<any>} Current stats object
  */
 export async function getCurrentStats() {
   try {
-    const response = await fetch(`${FUNCTIONS_URL}/getCurrentStats`);
-    
+    const response = await fetch(`${API_URL}/getCurrentStats`);
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
-    return data;
+    return await response.json();
   } catch (error) {
-    console.error('Failed to fetch stats:', error);
+    console.error("Failed to fetch stats:", error);
     throw error;
   }
 }
@@ -50,12 +51,12 @@ export async function getCurrentStats() {
 /**
  * Get detection log (latest 500)
  * @param {number} limit - Number of logs to retrieve
- * @returns {Promise} Detection log array
+ * @returns {Promise<any[]>} Detection log array
  */
 export async function getDetectionLog(limit = 500) {
   try {
-    const response = await fetch(`${FUNCTIONS_URL}/getDetectionLog?limit=${limit}`);
-    
+    const response = await fetch(`${API_URL}/getDetectionLog?limit=${limit}`);
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -63,7 +64,7 @@ export async function getDetectionLog(limit = 500) {
     const data = await response.json();
     return data.logs;
   } catch (error) {
-    console.error('Failed to fetch detection log:', error);
+    console.error("Failed to fetch detection log:", error);
     throw error;
   }
 }
@@ -72,14 +73,14 @@ export async function getDetectionLog(limit = 500) {
  * Get time series data
  * @param {string} period - 'minutes' or 'hours'
  * @param {number} hoursBack - How many hours of data to retrieve
- * @returns {Promise} Time series array
+ * @returns {Promise<any[]>} Time series array
  */
-export async function getTimeSeries(period = 'minutes', hoursBack = 24) {
+export async function getTimeSeries(period = "minutes", hoursBack = 24) {
   try {
     const response = await fetch(
-      `${FUNCTIONS_URL}/getTimeSeries?period=${period}&hours=${hoursBack}`
+      `${API_URL}/getTimeSeries?period=${period}&hours=${hoursBack}`
     );
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -87,7 +88,7 @@ export async function getTimeSeries(period = 'minutes', hoursBack = 24) {
     const data = await response.json();
     return data.timeSeries;
   } catch (error) {
-    console.error('Failed to fetch time series:', error);
+    console.error("Failed to fetch time series:", error);
     throw error;
   }
 }
