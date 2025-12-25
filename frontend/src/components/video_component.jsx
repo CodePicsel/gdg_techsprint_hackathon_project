@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from "react";
-import { config } from "../../config/config";
+import { ingestDetections } from "../functions/services/detectionService";
 
-const API = config.api_url || "http://localhost:8000";
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const MODEL_SIZE = 640;
 
 export default function CameraComponent() {
@@ -12,6 +12,7 @@ export default function CameraComponent() {
   const [status, setStatus] = useState("idle");
   const [detecting, setDetecting] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [lastDetectionCount, setLastDetectionCount] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -27,14 +28,14 @@ export default function CameraComponent() {
         video.srcObject = stream;
         await video.play();
 
-        // Ensure metadata is loaded
-        if (video.videoWidth === 0) {
-          await new Promise(res => (video.onloadedmetadata = res));
-        }
-
-        const canvas = overlayRef.current;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        // Wait for metadata to ensure video dimensions are available
+        await new Promise(resolve => {
+          if (video.videoWidth > 0) {
+            resolve();
+          } else {
+            video.onloadedmetadata = resolve;
+          }
+        });
 
         setStatus("ready");
       } catch (e) {
@@ -44,7 +45,6 @@ export default function CameraComponent() {
     }
 
     initCamera();
-    fetch(`${API}/health`).catch(() => {});
 
     return () => {
       mounted = false;
@@ -70,7 +70,7 @@ export default function CameraComponent() {
       video.play();
       setPaused(false);
       setStatus("ready");
-      setDetecting(false);
+      setLastDetectionCount(0);
     }
   }
 
@@ -101,27 +101,52 @@ export default function CameraComponent() {
 
       setStatus("running AI model...");
 
-      const controller = new AbortController();
-      setTimeout(() => controller.abort(), 45000);
-
       const resp = await fetch(`${API}/detect`, {
         method: "POST",
-        body: form,
-        signal: controller.signal
+        body: form
       });
 
-      const json = await resp.json();
-      drawDetections(json.boxes || []);
-      setStatus("detected");
-    } catch (e) {
-      if (e.name === "AbortError") {
-        setStatus("server waking up...");
-      } else {
-        console.error(e);
-        setStatus("error");
+      if (!resp.ok) {
+        throw new Error(`HTTP error! status: ${resp.status}`);
       }
+
+      const json = await resp.json();
+      const boxes = json.boxes || [];
+      
+      drawDetections(boxes);
+      setLastDetectionCount(boxes.length);
+      setStatus(`detected ${boxes.length} items`);
+
+      // 🔥 SEND TO FIREBASE BACKEND
+      if (boxes.length > 0) {
+        await sendDetectionsToFirebase(boxes);
+      } else {
+        setStatus("no plastic detected");
+      }
+
+    } catch (e) {
+      console.error(e);
+      setStatus("error - " + e.message);
     } finally {
       setDetecting(false);
+    }
+  }
+
+  /**
+   * 🔥 Send detections to Firebase backend
+   */
+  async function sendDetectionsToFirebase(boxes) {
+    try {
+      setStatus("saving to database...");
+      
+      const result = await ingestDetections(boxes);
+      
+      console.log("✅ Firebase ingestion successful:", result);
+      setStatus(`✓ detected & saved ${boxes.length} items`);
+    } catch (error) {
+      console.error("❌ Failed to save to Firebase:", error);
+      // Don't block the UI on Firebase errors
+      setStatus(`detected ${boxes.length} items (save failed)`);
     }
   }
 
@@ -133,8 +158,13 @@ export default function CameraComponent() {
   }
 
   function drawDetections(boxes) {
+    const video = videoRef.current;
     const canvas = overlayRef.current;
     const ctx = canvas.getContext("2d");
+
+    // Set canvas dimensions to match video dimensions every time
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.lineWidth = 2;
@@ -209,6 +239,12 @@ export default function CameraComponent() {
           Release / Resume
         </button>
       </div>
+
+      {lastDetectionCount > 0 && (
+        <div className="mt-3 ml-9 text-sm text-green-600 font-medium">
+          ✓ Last detection: {lastDetectionCount} plastic items found
+        </div>
+      )}
 
       <canvas ref={hiddenRef} className="hidden" />
     </div>
