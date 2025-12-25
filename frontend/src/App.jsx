@@ -6,11 +6,11 @@ export default function App() {
   const [view, setView] = useState('camera'); // 'camera' or 'dashboard'
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen min-w-full bg-gray-100">
       {/* Navigation */}
       <nav className="bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-green-600">PLASTIWATCH</h1>
+          <h1 className="text-2xl font-bold text-green-600">RiverBot</h1>
           <div className="flex gap-4">
             <button
               onClick={() => setView('camera')}
@@ -37,7 +37,7 @@ export default function App() {
       </nav>
 
       {/* Main Content */}
-      <main>
+      <main className='w-[100dvw]'>
         {view === 'camera' ? <CameraComponent /> : <Dashboard />}
       </main>
     </div>

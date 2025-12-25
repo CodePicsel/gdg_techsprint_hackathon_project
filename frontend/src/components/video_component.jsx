@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState } from "react";
-import { ingestDetections } from "../functions/services/detectionService";
+import { db } from "../firebase/firebase.config";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API = import.meta.env.VITE_API_URL || "https://your-app.onrender.com";
 const MODEL_SIZE = 640;
 
 export default function CameraComponent() {
@@ -28,7 +29,6 @@ export default function CameraComponent() {
         video.srcObject = stream;
         await video.play();
 
-        // Wait for metadata to ensure video dimensions are available
         await new Promise(resolve => {
           if (video.videoWidth > 0) {
             resolve();
@@ -117,9 +117,9 @@ export default function CameraComponent() {
       setLastDetectionCount(boxes.length);
       setStatus(`detected ${boxes.length} items`);
 
-      // 🔥 SEND TO FIREBASE BACKEND
+      // 🔥 SAVE DIRECTLY TO FIRESTORE
       if (boxes.length > 0) {
-        await sendDetectionsToFirebase(boxes);
+        await saveToFirestore(boxes);
       } else {
         setStatus("no plastic detected");
       }
@@ -133,19 +133,37 @@ export default function CameraComponent() {
   }
 
   /**
-   * 🔥 Send detections to Firebase backend
+   * 🔥 Save detections directly to Firestore
    */
-  async function sendDetectionsToFirebase(boxes) {
+  async function saveToFirestore(boxes) {
     try {
       setStatus("saving to database...");
       
-      const result = await ingestDetections(boxes);
+      console.log("📤 Saving to Firestore:", boxes);
+
+      // Save each detection
+      const promises = boxes.map(detection => 
+        addDoc(collection(db, "detections"), {
+          timestamp: serverTimestamp(),
+          className: detection.class_name,
+          confidence: detection.score,
+          classId: detection.class_id || 0,
+          bbox: {
+            x: detection.x,
+            y: detection.y,
+            w: detection.w,
+            h: detection.h
+          }
+        })
+      );
+
+      await Promise.all(promises);
       
-      console.log("✅ Firebase ingestion successful:", result);
+      console.log("✅ Firestore save successful");
       setStatus(`✓ detected & saved ${boxes.length} items`);
+      
     } catch (error) {
-      console.error("❌ Failed to save to Firebase:", error);
-      // Don't block the UI on Firebase errors
+      console.error("❌ Firestore error:", error);
       setStatus(`detected ${boxes.length} items (save failed)`);
     }
   }
@@ -162,7 +180,6 @@ export default function CameraComponent() {
     const canvas = overlayRef.current;
     const ctx = canvas.getContext("2d");
 
-    // Set canvas dimensions to match video dimensions every time
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
