@@ -92,5 +92,6 @@ async def detect(file: UploadFile = File(...), conf: float = Form(0.4)):
     return {"boxes": boxes_out}
 
 if __name__ == "__main__":
-    # Dev server
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+     port = int(os.environ.get("PORT", 8000))
+    reload_flag = os.environ.get("DEV_RELOAD", "False").lower() in ("1", "true")
+    uvicorn.run("server:app", host="0.0.0.0", port=port, reload=reload_flag)
